@@ -12,7 +12,7 @@ namespace AndroidSideloader.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "16.8.1.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "16.7.0.0")]
     internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
         
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
@@ -44,18 +44,6 @@ namespace AndroidSideloader.Properties {
             }
             set {
                 this["enableMessageBoxes"] = value;
-            }
-        }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("False")]
-        public bool logRclone {
-            get {
-                return ((bool)(this["logRclone"]));
-            }
-            set {
-                this["logRclone"] = value;
             }
         }
         
@@ -193,7 +181,7 @@ namespace AndroidSideloader.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Microsoft Sans Serif, 9.2pt, style=Bold")]
+        [global::System.Configuration.DefaultSettingValueAttribute("Microsoft Sans Serif, 11.25pt")]
         public global::System.Drawing.Font FontStyle {
             get {
                 return ((global::System.Drawing.Font)(this["FontStyle"]));
@@ -236,6 +224,18 @@ namespace AndroidSideloader.Properties {
             }
             set {
                 this["BandwithLimit"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Microsoft Sans Serif, 16pt")]
+        public global::System.Drawing.Font BigFontStyle {
+            get {
+                return ((global::System.Drawing.Font)(this["BigFontStyle"]));
+            }
+            set {
+                this["BigFontStyle"] = value;
             }
         }
     }

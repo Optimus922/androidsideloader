@@ -1,3 +1,23 @@
+v2.0
+
+Changes
+ + Added update checker for games
+ + Added dependency check for spoofer
+ + Games now can have images
+ + Replaced the gamescombo box with a listview
+ + Sideloader should be faster now
+ + Reduced sideloader size
+ + Installing games and copying obbs tries to wake the device first
+ + ADB Output now is a proper object containing strings for stdout and stderr, handling will be easier now
+ + Changed spoof on rclone install to resign, allowing users to easily update games from now on!
+ //You can still use the spoof button manually
+ = Fixed UI not starting for some people
+ = Refreshing mirrors now deosn't change the selected mirror
+ = Cleaned & reworked code
+ = Fixed Spoofer.Init() on Non-English Windows
+ = Fixed crash detection
+
+
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA256
 

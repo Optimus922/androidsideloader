@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace AndroidSideloader
 {
+
     class ADB
     {
         static Process adb = new Process();
         public static string adbFolderPath = Environment.CurrentDirectory + "\\adb";
         public static string adbFilePath = adbFolderPath + "\\adb.exe";
-        public static bool IsRunningCommand = false;
-        public static string RunAdbCommandToString(string command)
+        public static string DeviceID = "";
+
+        public static ProcessOutput RunAdbCommandToString(string command)
         {
-
-            IsRunningCommand = true;
-
             if (DeviceID.Length > 1)
                 command = $" -s {DeviceID} {command}";
 
@@ -28,39 +28,27 @@ namespace AndroidSideloader
             adb.StartInfo.UseShellExecute = false;
             adb.StartInfo.WorkingDirectory = adbFolderPath;
 
-            //adb.OutputDataReceived += ADB_OutputDataReceived;
-            adb.ErrorDataReceived += ADB_ErrorDataReceived;
-
             adb.Start();
             adb.StandardInput.WriteLine(command);
             adb.StandardInput.Flush();
             adb.StandardInput.Close();
 
             var output = adb.StandardOutput.ReadToEnd();
-            error = adb.StandardError.ReadToEnd();
+            var adbError = adb.StandardError.ReadToEnd();
 
             adb.WaitForExit();
-            IsRunningCommand = false;
             Logger.Log(output);
-            return output;
+            Logger.Log(adbError);
+            return new ProcessOutput(output, adbError);
         }
 
-        public static string UninstallPackage(string package)
+        public static ProcessOutput UninstallPackage(string package)
         {
-            string output = string.Empty;
+            ProcessOutput output = new ProcessOutput("", "");
             output += RunAdbCommandToString($"shell pm uninstall -k --user 0 {package}");
             output += RunAdbCommandToString($"shell pm uninstall {package}");
             return output;
         }
-
-        public static string error = "";
-
-        static void ADB_ErrorDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            Logger.Log($"ADB ERROR: {e.Data}");
-        }
-
-        public static string DeviceID = "";
 
         public static string GetAvailableSpace()
         {
@@ -70,7 +58,7 @@ namespace AndroidSideloader
 
             long freeSize = 0;
 
-            var output = RunAdbCommandToString("shell df").Split('\n');
+            var output = RunAdbCommandToString("shell df").Output.Split('\n');
 
             foreach (string currLine in output)
             {
@@ -104,28 +92,26 @@ namespace AndroidSideloader
                 }
             }
 
-            return $"Total space: {String.Format("{0:0.00}", (double)totalSize / 1000)}GB\n Used space: {String.Format("{0:0.00}", (double)usedSize / 1000)}GB\n Free space: {String.Format("{0:0.00}", (double)freeSize / 1000)}GB";
+            return $"Total space: {String.Format("{0:0.00}", (double)totalSize / 1000)}GB\nUsed space: {String.Format("{0:0.00}", (double)usedSize / 1000)}GB\nFree space: {String.Format("{0:0.00}", (double)freeSize / 1000)}GB";
         }
 
-        public static string Sideload(string path)
+        public static void WakeDevice()
         {
+            RunAdbCommandToString("shell input keyevent KEYCODE_WAKEUP");
+        }
+
+        public static ProcessOutput Sideload(string path)
+        {
+            WakeDevice();
             return RunAdbCommandToString($"install -g -r \"{path}\"");
         }
 
-        public static string CopyOBB(string path)
+        public static ProcessOutput CopyOBB(string path)
         {
-            bool ok = false;
-            foreach (string file in Directory.GetFiles(path))
-            {
-                if (Path.GetExtension(file) == ".obb")
-                {
-                    ok = true;
-                    break;
-                }
-            }
-            if (ok)
+            WakeDevice();
+            if (SideloaderUtilities.CheckFolderIsObb(path))
                 return RunAdbCommandToString($"push \"{path}\" /sdcard/Android/obb");
-            return "";
+            return new ProcessOutput("","");
         }
     }
 }

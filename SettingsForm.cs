@@ -26,7 +26,6 @@ namespace AndroidSideloader
             enableMessageBoxesCheckBox.Checked = Properties.Settings.Default.enableMessageBoxes;
             deleteAfterInstallCheckBox.Checked = Properties.Settings.Default.deleteAllAfterInstall;
             updateConfigCheckBox.Checked = Properties.Settings.Default.autoUpdateConfig;
-            debugRcloneCheckBox.Checked = Properties.Settings.Default.logRclone;
             userJsonOnGameInstall.Checked = Properties.Settings.Default.userJsonOnGameInstall;
             spoofGamesCheckbox.Checked = Properties.Settings.Default.SpoofGames;
             if (Properties.Settings.Default.BandwithLimit.Length>1)
@@ -94,11 +93,6 @@ namespace AndroidSideloader
             Properties.Settings.Default.autoUpdateConfig = updateConfigCheckBox.Checked;
         }
 
-        private void debugRcloneCheckBox_CheckedChanged(object sender, EventArgs e)
-        {
-            Properties.Settings.Default.logRclone = debugRcloneCheckBox.Checked;
-        }
-
         private void userJsonOnGameInstall_CheckedChanged(object sender, EventArgs e)
         {
             Properties.Settings.Default.userJsonOnGameInstall = userJsonOnGameInstall.Checked;
@@ -106,9 +100,14 @@ namespace AndroidSideloader
 
         private void spoofGamesCheckbox_CheckedChanged(object sender, EventArgs e)
         {
+            if (Spoofer.spoofer.HasDependencies())
+                spoofGamesCheckbox.Checked = true;
+            else
+            {
+                MessageBox.Show("You are missing dependencies");
+                spoofGamesCheckbox.Checked = false;
+            }
             Properties.Settings.Default.SpoofGames = spoofGamesCheckbox.Checked;
-            if (spoofGamesCheckbox.Checked)
-                FlexibleMessageBox.Show(Sideloader.SpooferWarning);
         }
     }
 }

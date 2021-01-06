@@ -26,7 +26,7 @@ namespace AndroidSideloader
         static void MyHandler(object sender, UnhandledExceptionEventArgs args)
         {
             Exception e = (Exception)args.ExceptionObject;
-            File.WriteAllText("crash.log", $"Message: {e.Message}\nData: {e.Data}\nSource: {e.Source}\nTargetSite: {e.TargetSite}");
+            File.WriteAllText(Sideloader.CrashLogPath, $"Message: {e.Message}\nData: {e.Data}\nSource: {e.Source}\nTargetSite: {e.TargetSite}");
         }
     }
 }

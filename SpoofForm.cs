@@ -16,6 +16,11 @@ namespace AndroidSideloader
 
         private async void SpoofButton_Click(object sender, EventArgs e)
         {
+            if (!spoofer.HasDependencies())
+            {
+                MessageBox.Show("You are missing the dependencies... Cannot spoof games");
+                return;
+            }
             string NewPackageName = PackageNameTextBox.Text;
             string path;
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
@@ -56,12 +61,12 @@ namespace AndroidSideloader
 
         private void SpoofForm_Load(object sender, EventArgs e)
         {
-            PackageNameTextBox.Text = Utilities.RandomPackageName();
+            PackageNameTextBox.Text = Utilities.GeneralUtilities.RandomPackageName();
         }
 
         private void RandomizeButton_Click(object sender, EventArgs e)
         {
-            PackageNameTextBox.Text = Utilities.RandomPackageName();
+            PackageNameTextBox.Text = Utilities.GeneralUtilities.RandomPackageName();
         }
     }
 }

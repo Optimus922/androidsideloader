@@ -16,9 +16,7 @@ namespace AndroidSideloader
 
         private static Process rclone = new Process();
 
-        public static string rcloneError = "";
-
-        public static string runRcloneCommand(string command, bool log = true, string bandwithLimit = "")
+        public static ProcessOutput runRcloneCommand(string command, string bandwithLimit = "")
         {
             Environment.SetEnvironmentVariable("RCLONE_CRYPT_REMOTE", rclonepw);
             Environment.SetEnvironmentVariable("RCLONE_CONFIG_PASS", rclonepw);
@@ -32,8 +30,6 @@ namespace AndroidSideloader
 
             if (rclonepw.Length > 0)
                 command += " --ask-password=false";
-            if (log && Properties.Settings.Default.logRclone)
-                command += " --log-file=log.txt --log-level DEBUG";
 
             Logger.Log($"Running Rclone command: {command}");
 
@@ -53,14 +49,11 @@ namespace AndroidSideloader
             rclone.StandardInput.Flush();
             rclone.StandardInput.Close();
 
-
-            var output = rclone.StandardOutput.ReadToEnd();
+            string output = rclone.StandardOutput.ReadToEnd();
             string error = rclone.StandardError.ReadToEnd();
             rclone.WaitForExit();
             Logger.Log($"Rclone error: {error} {error.Length}\nRclone Output: {output}");
-            if (error.Length > 77)
-                Form1.processError = rcloneError;
-            return output;
+            return new ProcessOutput(output,error);
         }
     }
 }

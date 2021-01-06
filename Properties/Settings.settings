@@ -8,9 +8,6 @@
     <Setting Name="enableMessageBoxes" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
-    <Setting Name="logRclone" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">False</Value>
-    </Setting>
     <Setting Name="firstRun" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
@@ -45,7 +42,7 @@
       <Value Profile="(Default)">White</Value>
     </Setting>
     <Setting Name="FontStyle" Type="System.Drawing.Font" Scope="User">
-      <Value Profile="(Default)">Microsoft Sans Serif, 9.2pt, style=Bold</Value>
+      <Value Profile="(Default)">Microsoft Sans Serif, 11.25pt</Value>
     </Setting>
     <Setting Name="BackPicturePath" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
@@ -55,6 +52,9 @@
     </Setting>
     <Setting Name="BandwithLimit" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="BigFontStyle" Type="System.Drawing.Font" Scope="User">
+      <Value Profile="(Default)">Microsoft Sans Serif, 16pt</Value>
     </Setting>
   </Settings>
 </SettingsFile>

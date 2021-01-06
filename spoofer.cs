@@ -2,6 +2,7 @@
 using System.IO;
 using System.Diagnostics;
 using AndroidSideloader;
+using AndroidSideloader.Utilities;
 
 namespace Spoofer
 {
@@ -12,14 +13,12 @@ namespace Spoofer
 
         public static void Init()
         {
-            if (File.Exists("keystore.key") == false || File.Exists("details.txt") == false)
+            if ((File.Exists("keystore.key") == false || File.Exists("details.txt") == false) && HasDependencies())
             {
-                Console.WriteLine("There is no key to sign the apk, making one now...");
                 var rand = new Random();
-                alias = Utilities.randomString(8);
-                password = Utilities.randomString(16);
-                string subject = $"CN = {Utilities.randomString(rand.Next(2, 6))}, OU = {Utilities.randomString(rand.Next(2, 6))}, O = {Utilities.randomString(rand.Next(2, 6))}, L = {Utilities.randomString(rand.Next(2, 6))}, ST = {Utilities.randomString(rand.Next(2, 6))}, C = {Utilities.randomString(rand.Next(2, 6))}";
-
+                alias = GeneralUtilities.randomString(8);
+                password = GeneralUtilities.randomString(16);
+                string subject = $"CN = {GeneralUtilities.randomString(rand.Next(2, 6))}, OU = {GeneralUtilities.randomString(rand.Next(2, 6))}, O = {GeneralUtilities.randomString(rand.Next(2, 6))}, L = {GeneralUtilities.randomString(rand.Next(2, 6))}, ST = {GeneralUtilities.randomString(rand.Next(2, 6))}, C = {GeneralUtilities.randomString(rand.Next(2, 6))}";
                 Process cmd = new Process();
                 cmd.StartInfo.FileName = "cmd.exe";
                 cmd.StartInfo.RedirectStandardInput = true;
@@ -35,9 +34,8 @@ namespace Spoofer
                 cmd.WaitForExit();
                 string keyerror = cmd.StandardError.ReadToEnd();
                 string keyoutput = cmd.StandardOutput.ReadToEnd();
-                File.WriteAllText("debug.txt", $"Output: {keyoutput} Error: {keyerror}");
+                Logger.Log($"Output: {keyoutput} Error: {keyerror}");
                 File.WriteAllText("details.txt", $"{alias};{password}");
-                Console.WriteLine("Key generated");
             }
             else
             {
@@ -55,10 +53,21 @@ namespace Spoofer
 
         public static string spoofedApkPath = string.Empty;
 
-        public static string SpoofApk(string apkPath, string newPackageName, string obbPath = "")
+        //public static ProcessOutput ResignAPK(string apkPath)
+        //{
+        //    string output = "";
+        //    string oldGameName = Path.GetFileName(apkPath);
+        //    folderPath = apkPath.Replace(Path.GetFileName(apkPath), "");
+        //    File.Move(apkPath, $"{folderPath}spoofme.apk");
+        //    apkPath = $"{folderPath}spoofme.apk";
+        //    decompiledPath = apkPath.Replace(".apk", "");
+        //    string packagename = PackageName(apkPath);
+        //}
+
+        public static ProcessOutput SpoofApk(string apkPath, string newPackageName, string obbPath = "")
         {
             //Rename
-            string output = "";
+            ProcessOutput output = new ProcessOutput("","");
             string oldGameName = Path.GetFileName(apkPath);
             folderPath = apkPath.Replace(Path.GetFileName(apkPath), "");
             File.Move(apkPath, $"{folderPath}spoofme.apk");
@@ -104,7 +113,7 @@ namespace Spoofer
             Console.WriteLine("Rebuilding the APK...");
             spoofedApkPath = $"{Path.GetFileName(apkPath).Replace(".apk", "")}_Spoofed as {newPackageName}.apk";
 
-            output += Utilities.startProcess("cmd.exe", folderPath, $"apktool b \"{Path.GetFileName(apkPath).Replace(".apk", "")}\" -o \"{spoofedApkPath}\"");
+            output += GeneralUtilities.startProcess("cmd.exe", folderPath, $"apktool b \"{Path.GetFileName(apkPath).Replace(".apk", "")}\" -o \"{spoofedApkPath}\"");
             Logger.Log($"apktool b \"{Path.GetFileName(apkPath).Replace(".apk", "")}\" -o \"{spoofedApkPath}\": {output}");
             Console.WriteLine("APK Rebuilt");
 
@@ -129,7 +138,7 @@ namespace Spoofer
             return output;
         }
 
-        public static string SignApk(string path, string packageName)
+        public static ProcessOutput SignApk(string path, string packageName)
         {
             Process cmdSign = new Process();
             cmdSign.StartInfo.FileName = "cmd.exe";
@@ -138,27 +147,51 @@ namespace Spoofer
             cmdSign.StartInfo.CreateNoWindow = true;
             cmdSign.StartInfo.UseShellExecute = false;
             cmdSign.StartInfo.RedirectStandardOutput = true;
+            cmdSign.StartInfo.RedirectStandardError = true;
             cmdSign.Start();
             cmdSign.StandardInput.WriteLine($"jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore keystore.key \"{spoofedApkPath}\" {alias}");
             cmdSign.StandardInput.WriteLine(password);
             cmdSign.StandardInput.Flush();
             cmdSign.StandardInput.Close();
             cmdSign.WaitForExit();
-            var output = cmdSign.StandardOutput.ReadToEnd();
-            Logger.Log(output);
+            string output = cmdSign.StandardOutput.ReadToEnd();
+            string error = cmdSign.StandardError.ReadToEnd();
+            Logger.Log("Jarsign Output " + output);
+            Logger.Log("Error: " + error);
+            return new ProcessOutput(output, error);
+        }
+
+        public static ProcessOutput DecompileApk(string path)
+        {
+            ProcessOutput output = GeneralUtilities.startProcess("cmd.exe", folderPath, $"apktool d -f \"{path}\"");
             return output;
         }
 
-        public static string DecompileApk(string path)
+        public static bool HasDependencies()
         {
-            string output = Utilities.startProcess("cmd.exe", folderPath, $"apktool d -f \"{path}\"");
+            if (!ExistsOnPath("jarsigner") && !ExistsOnPath("apktool") && !ExistsOnPath("aapt"))
+                return true;
+            return false;
+        }
 
-            Console.WriteLine(output);
-            File.AppendAllText("debug.txt", $"apktool d \"{path}\": {output}");
-            //If error
-            if (Utilities.processError.Length > 1)
-                output += $"ERROR: {Utilities.processError}";
-            return output;
+        public static bool ExistsOnPath(string fileName)
+        {
+            return GetFullPath(fileName) != null;
+        }
+
+        public static string GetFullPath(string fileName)
+        {
+            if (File.Exists(fileName))
+                return Path.GetFullPath(fileName);
+
+            var values = Environment.GetEnvironmentVariable("PATH");
+            foreach (var path in values.Split(Path.PathSeparator))
+            {
+                var fullPath = Path.Combine(path, fileName);
+                if (File.Exists(fullPath))
+                    return fullPath;
+            }
+            return null;
         }
 
         //Renames obb to new obb according to packagename
@@ -175,11 +208,13 @@ namespace Spoofer
             }
         }
 
+
+
         public static string PackageName(string path)
         {
             Console.WriteLine($"aapt dump badging \"{path}\"");
 
-            string originalPackageName = Utilities.startProcess("cmd.exe", path.Replace(Path.GetFileName(path), string.Empty), $"aapt dump badging \"{path}\" | findstr -i \"package: name\"");
+            string originalPackageName = GeneralUtilities.startProcess("cmd.exe", path.Replace(Path.GetFileName(path), string.Empty), $"aapt dump badging \"{path}\" | findstr -i \"package: name\"").Output;
             File.AppendAllText("debug.txt", $"originalPackageName: {originalPackageName}");
             try
             {

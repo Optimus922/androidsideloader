@@ -3,14 +3,11 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.IO;
 using System.Drawing;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net.Http;
-using System.Net;
 using SergeUtils;
 using JR.Utils.GUI.Forms;
 using Newtonsoft.Json;
@@ -21,40 +18,41 @@ namespace AndroidSideloader
 
     public partial class Form1 : Form
     {
+        private ListViewColumnSorter lvwColumnSorter;
+
 #if DEBUG
         public static bool debugMode = true;
 #else
         public static bool debugMode = false;
 #endif
 
+        bool isLoading = true;
+
         bool is1April = false;
 
         public Form1()
         {
             InitializeComponent();
+            lvwColumnSorter = new ListViewColumnSorter();
+            this.gamesListView.ListViewItemSorter = lvwColumnSorter;
         }
 
-        string olddTitle = "";
-        //            await Task.Delay(TimeSpan.FromSeconds(5));
+        string oldTitle = "";
         public async void ChangeTitle(string txt, bool reset = true)
         {
-            this.Invoke(() => { olddTitle = this.Text; this.Text = txt; });
+            this.Invoke(() => { oldTitle = this.Text; this.Text = txt; });
             if (!reset)
                 return;
             await Task.Delay(TimeSpan.FromSeconds(5));
-            this.Invoke(() => { this.Text = olddTitle; });
+            this.Invoke(() => { this.Text = oldTitle; });
         }
 
         private void ShowSubMenu(Panel subMenu)
         {
             if (subMenu.Visible == false)
-            {
                 subMenu.Visible = true;
-            }
             else
-            {
                 subMenu.Visible = false;
-            }
         }
 
         void AprilPrank()
@@ -70,7 +68,7 @@ namespace AndroidSideloader
 
         private async void startsideloadbutton_Click(object sender, EventArgs e)
         {
-            string output = string.Empty;
+            ProcessOutput output = new ProcessOutput("", "");
             string path = string.Empty;
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
@@ -96,8 +94,20 @@ namespace AndroidSideloader
                 await Task.Delay(100);
 
             showAvailableSpace();
+
+            ShowPrcOutput(output);
         }
+
+        public void ShowPrcOutput(ProcessOutput prcout)
+        {
+            string message = $"Output: {prcout.Output}";
+            if (prcout.Error.Length != 0)
+                message += $"\nError: {prcout.Error}";
+            FlexibleMessageBox.Show(this, message);
+        }
+
         List<string> Devices = new List<string>();
+        
         async Task<int> CheckForDevice()
         {
             Devices.Clear();
@@ -106,7 +116,7 @@ namespace AndroidSideloader
             ADB.DeviceID = GetDeviceID();
             Thread t1 = new Thread(() =>
             {
-                output = ADB.RunAdbCommandToString("devices");
+                output = ADB.RunAdbCommandToString("devices").Output;
             });
             t1.Start();
 
@@ -156,14 +166,13 @@ namespace AndroidSideloader
 
         private async void obbcopybutton_Click(object sender, EventArgs e)
         {
-            string output = string.Empty;
+            ProcessOutput output = new ProcessOutput("", "");
             var dialog = new FolderSelectDialog
             {
                 Title = "Select your obb folder"
             };
             if (dialog.Show(Handle))
             {
-                string[] files = Directory.GetFiles(dialog.FileName);
 
                 Thread t1 = new Thread(() =>
                 {
@@ -176,10 +185,9 @@ namespace AndroidSideloader
                     await Task.Delay(100);
 
                 showAvailableSpace();
-            }
-            else return;
 
-            notify(output);
+                ShowPrcOutput(output);
+            }
         }
 
         private void ChangeTitlebarToDevice()
@@ -194,93 +202,9 @@ namespace AndroidSideloader
                     this.Invoke(() => { this.Text = "Rookie's Sideloader | No Device Connected"; });
             }
         }
-        public static bool HasDependencies()
-        {
-            if (!ExistsOnPath("jarsigner") && !ExistsOnPath("apktool") && !ExistsOnPath("aapt"))
-                return true;
-            return false;
-        }
-        public static bool ExistsOnPath(string fileName)
-        {
-            return GetFullPath(fileName) != null;
-        }
-        public static string GetFullPath(string fileName)
-        {
-            if (File.Exists(fileName))
-                return Path.GetFullPath(fileName);
-
-            var values = Environment.GetEnvironmentVariable("PATH");
-            foreach (var path in values.Split(Path.PathSeparator))
-            {
-                var fullPath = Path.Combine(path, fileName);
-                if (File.Exists(fullPath))
-                    return fullPath;
-            }
-            return null;
-        }
-        void downloadFiles()
-        {
-            using (var client = new WebClient())
-            {
-                ServicePointManager.Expect100Continue = true;
-                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-                if (!File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\warning.png"))
-                    client.DownloadFile("https://github.com/nerdunit/androidsideloader/raw/master/secret", Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\warning.png");
-
-
-                if (!File.Exists("Sideloader Launcher.exe"))
-                    client.DownloadFile("https://github.com/nerdunit/androidsideloader/raw/master/Sideloader%20Launcher.exe", "Sideloader Launcher.exe");
-
-                if (!Directory.Exists(ADB.adbFolderPath)) //if there is no adb folder, download and extract
-                {
-                    try
-                    {
-                        client.DownloadFile("https://github.com/nerdunit/androidsideloader/raw/master/adb.7z", "adb.7z");
-                        oldTitle = this.Text;
-                        ChangeTitle($"Rookie's Sideloader | Extracting archive {Environment.CurrentDirectory}\\adb.7z");
-                        Zip.ExtractFile($"{Environment.CurrentDirectory}\\adb.7z", Environment.CurrentDirectory);
-                        File.Delete("adb.7z");
-                    }
-                    catch
-                    {
-
-                    }
-
-                }
-
-                if (!Directory.Exists(Environment.CurrentDirectory + "\\rclone"))
-                {
-                    string url;
-                    if (Environment.Is64BitOperatingSystem)
-                        url = "https://downloads.rclone.org/v1.53.1/rclone-v1.53.1-windows-amd64.zip";
-                    else
-                        url = "https://downloads.rclone.org/v1.53.1/rclone-v1.53.1-windows-386.zip";
-
-                    client.DownloadFile(url, "rclone.zip");
-
-                    client.DownloadFile("https://github.com/nerdunit/androidsideloader/raw/master/adb.7z", "adb.7z");
-                    ChangeTitle("Rookie's Sideloader | Extracting archive " + $"{Environment.CurrentDirectory}\\rclone.zip");
-                    Zip.ExtractFile(Environment.CurrentDirectory + "\\rclone.zip", Environment.CurrentDirectory);
-
-                    File.Delete("rclone.zip");
-
-                    string[] folders = Directory.GetDirectories(Environment.CurrentDirectory);
-                    foreach (string folder in folders)
-                    {
-                        if (folder.Contains("rclone"))
-                        {
-                            Directory.Move(folder, "rclone");
-                            break;
-                        }
-                    }
-                }
-            }
-        }
 
         async void showAvailableSpace()
         {
-            progressBar.Style = ProgressBarStyle.Marquee;
             string AvailableSpace = string.Empty;
             ADB.DeviceID = GetDeviceID();
             Thread t1 = new Thread(() =>
@@ -292,7 +216,6 @@ namespace AndroidSideloader
             while (t1.IsAlive)
                 await Task.Delay(100);
 
-            progressBar.Style = ProgressBarStyle.Continuous;
             diskLabel.Invoke(() => { diskLabel.Text = AvailableSpace; });
         }
 
@@ -308,6 +231,10 @@ namespace AndroidSideloader
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+            gamesListView.View = View.Details;
+            gamesListView.FullRowSelect = true;
+            gamesListView.GridLines = true;
+
             if (File.Exists(Sideloader.CrashLogPath))
             {
                 DialogResult dialogResult = FlexibleMessageBox.Show(this, $@"Looks like sideloader crashed last time, please make an issue at https://github.com/nerdunit/androidsideloader/issues
@@ -317,14 +244,16 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                     File.Delete(Sideloader.CrashLogPath);
             }
 
+            Sideloader.downloadFiles(); await Task.Delay(100);
+
             //Delete the Debug file if it is more than 5MB
             if (File.Exists(Logger.logfile))
             {
                 long length = new System.IO.FileInfo(Logger.logfile).Length;
                 if (length > 5000000) File.Delete(Logger.logfile);
             }
-            if (HasDependencies())
-            try {Spoofer.spoofer.Init(); } catch { }
+
+            try { Spoofer.spoofer.Init(); } catch { }
 
             if (Properties.Settings.Default.CallUpgrade)
             {
@@ -339,14 +268,14 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             speedLabel.Text = "";
             diskLabel.Text = "";
 
-            downloadFiles(); await Task.Delay(100);
+            
 
-            //this.Activate();
-
-            await CheckForDevice();
-
-            ChangeTitlebarToDevice();
-
+            try
+            {
+                await CheckForDevice();
+                ChangeTitlebarToDevice();
+            }
+            catch { }
 
         }
 
@@ -378,10 +307,9 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
         private async void backupbutton_Click(object sender, EventArgs e)
         {
-            string output = string.Empty;
+            ProcessOutput output = new ProcessOutput("", "");
             Thread t1 = new Thread(() =>
             {
-
                 output = ADB.RunAdbCommandToString($"pull \"/sdcard/Android/data\" \"{Environment.CurrentDirectory}\"");
 
                 try
@@ -399,12 +327,12 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             while (t1.IsAlive)
                 await Task.Delay(100);
 
-            notify(output);
+            ShowPrcOutput(output);
         }
 
         private async void restorebutton_Click(object sender, EventArgs e)
         {
-            string output = string.Empty;
+            ProcessOutput output = new ProcessOutput("", "");
             var dialog = new FolderSelectDialog
             {
                 Title = "Select your obb folder"
@@ -414,7 +342,7 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                 string path = dialog.FileName;
                 Thread t1 = new Thread(() =>
                 {
-                    output = ADB.RunAdbCommandToString($"push \"{path}\" /sdcard/Android/");
+                    output += ADB.RunAdbCommandToString($"push \"{path}\" /sdcard/Android/");
                 });
                 t1.IsBackground = true;
                 t1.Start();
@@ -424,66 +352,31 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             }
             else return;
 
-            notify(output);
+            ShowPrcOutput(output);
         }
 
         private string listapps()
         {
             ADB.DeviceID = GetDeviceID();
-            return ADB.RunAdbCommandToString("shell pm list packages");
+            return ADB.RunAdbCommandToString("shell pm list packages").Output;
         }
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<string[]> getGames()
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-        {
-            string command = $"cat \"{currentRemote}:Quest Games/APK_packagenames.txt\" --config .\\a";
-            Process cmd = new Process();
-            cmd.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-            cmd.StartInfo.FileName = Environment.CurrentDirectory + "\\rclone\\rclone.exe";
-            cmd.StartInfo.Arguments = command;
-            cmd.StartInfo.RedirectStandardInput = true;
-            cmd.StartInfo.RedirectStandardOutput = true;
-            cmd.StartInfo.WorkingDirectory = Environment.CurrentDirectory + "\\rclone";
-            cmd.StartInfo.CreateNoWindow = true;
-            cmd.StartInfo.UseShellExecute = false;
-            cmd.Start();
-            cmd.StandardInput.WriteLine(command);
-            cmd.StandardInput.Flush();
-            cmd.StandardInput.Close();
-            var games = cmd.StandardOutput.ReadToEnd().Split('\n');
-            cmd.WaitForExit();
-            return games;
-        }
-
-        private void listappsBtn()
+        private void listappsbtn()
         {
             m_combo.Invoke(() => { m_combo.Items.Clear(); });
 
             var line = listapps().Split('\n');
 
-            for (int  i = 0; i < line.Length; i++)
+            for (int i = 0; i < line.Length; i++)
             {
                 if (line[i].Length > 9)
                 {
                     line[i] = line[i].Remove(0, 8);
                     line[i] = line[i].Remove(line[i].Length - 1);
-
-                    foreach (string game in games)
-                    {
-                        if (line[i].Length > 0 && game.Contains(line[i]))
-                        {
-                            var foo = game.Split(';');
-
-                            int index = 0;
-                            index = foo[0].LastIndexOf(" v");
-                            if (index > 0)
-                                foo[0] = foo[0].Substring(0, index);
-
-                            line[i] = foo[0];
-                        }
-
-                    }
+                    Sideloader.InstalledPackageNames.Add(line[i]);
+                    foreach (var game in SideloaderRCLONE.games)
+                        if (line[i].Length > 0 && game[3].Contains(line[i]))
+                            line[i] = game[0];
                 }
             }
 
@@ -500,82 +393,28 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
         private async void getApkButton_Click(object sender, EventArgs e)
         {
-
             if (m_combo.SelectedIndex == -1)
             {
                 notify("Please select an app first");
                 return;
             }
-
             progressBar.Style = ProgressBarStyle.Marquee;
-            string output = string.Empty;
+
+            string GameName = m_combo.SelectedItem.ToString();
+            ProcessOutput output = new ProcessOutput("", "");
+
             Thread t1 = new Thread(() =>
             {
-                string packageName = "";
-
-                m_combo.Invoke(() => { packageName = m_combo.SelectedItem.ToString(); });
-
-                foreach (string game in games)
-                {
-                    Debug.WriteLine(game);
-                    if (packageName.Length > 0 && game.Contains(packageName))
-                    {
-                        var foo = game.Split(';');
-                        packageName = foo[2];
-                    }
-                }
-
-                output = ADB.RunAdbCommandToString("shell pm path " + packageName); //Get apk
-
-                output = output.Remove(output.Length - 1);
-
-                string apkPath = output.Remove(0, 8); //remove package:
-                apkPath = apkPath.Remove(apkPath.Length - 1);
-
-                output = ADB.RunAdbCommandToString("pull " + apkPath); //pull apk
-
-                string currApkPath = apkPath;
-                while (currApkPath.Contains("/"))
-                    currApkPath = currApkPath.Substring(currApkPath.IndexOf("/") + 1);
-
-                if (File.Exists(Environment.CurrentDirectory + "\\" + packageName + ".apk"))
-                    File.Delete(Environment.CurrentDirectory + "\\" + packageName + ".apk");
-                
-                File.Move(Environment.CurrentDirectory + "\\adb\\" + currApkPath, Environment.CurrentDirectory + "\\" + packageName + ".apk");
+                output = Sideloader.getApk(GameName);
             });
             t1.IsBackground = true;
             t1.Start();
-            progressBar.Style = ProgressBarStyle.Continuous;
-
 
             while (t1.IsAlive)
                 await Task.Delay(100);
+            progressBar.Style = ProgressBarStyle.Continuous;
 
-            notify(output);
-        }
-
-        string getpackagename(string gameName)
-        {
-            string packageName = gameName;
-
-            if (packageName.Contains(" v"))
-            {
-                int index = packageName.LastIndexOf(" v");
-                if (index > 0)
-                    packageName = packageName.Substring(0, index); // or index + 1 to keep slash
-            }
-
-            foreach (string game in games)
-            {
-                if (packageName.Length > 0 && game.Contains(packageName))
-                {
-                    packageName = game;
-                    break;
-                }
-            }
-
-            return packageName;
-
+            ShowPrcOutput(output);
         }
 
         private async void uninstallAppButton_Click(object sender, EventArgs e)
@@ -586,41 +425,14 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                 return;
             }
 
-            string uninstallText = "";
-
+            ProcessOutput output = new ProcessOutput("", "");
             progressBar.Style = ProgressBarStyle.Marquee;
 
+            string GameName = m_combo.SelectedItem.ToString();
             Thread t1 = new Thread(() =>
             {
-                string foo = "";
-                m_combo.Invoke(() => { foo = m_combo.SelectedItem.ToString(); });
-                string packageName = getpackagename(foo);
-
-                try
-                {
-                    packageName = packageName.Split(';')[2];
-                }
-                catch { }
-
-                DialogResult dialogResult = FlexibleMessageBox.Show("Do you want Rookie to attempt to BACKUP YOUR SAVE FILES" + " before" + " uninstalling?", "BACKUP SAVE?", MessageBoxButtons.YesNo);
-                if (dialogResult != DialogResult.Yes)
-                    return;
-                
-                uninstallText += ADB.UninstallPackage(packageName);
-
-                RemoveFolder("/sdcard/Android/obb/" + packageName);
-                RemoveFolder("/sdcard/Android/obb/" + packageName + "/");
-
-//                uninstallText += allText;
-
-                dialogResult = FlexibleMessageBox.Show("Since save files are typically a few MB we recommend you KEEP YOUR GAME SAVES for. Want Rookie to BACKUP YOUR" + packageName +  "SAVE BEFORE UNINSTALLING?", "KEEP SAVES?", MessageBoxButtons.YesNo);
-                if (dialogResult == DialogResult.No)
-                {
-                    RemoveFolder("/sdcard/Android/data/" + packageName + "/");
-                    RemoveFolder("/sdcard/Android/data/" + packageName);
-                }
+                output += Sideloader.UninstallGame(GameName);
             });
-            t1.IsBackground = true;
             t1.Start();
 
             while (t1.IsAlive)
@@ -629,14 +441,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             showAvailableSpace();
 
             progressBar.Style = ProgressBarStyle.Continuous;
-
-            if (uninstallText.Length > 0)
-                notify(uninstallText);
-        }
-
-        string RemoveFolder(string path)
-        {
-            return ADB.RunAdbCommandToString($"shell rm -r {path}");
+            m_combo.Items.RemoveAt(m_combo.SelectedIndex);
+            ShowPrcOutput(output);
         }
 
         private async void sideloadFolderButton_Click(object sender, EventArgs e)
@@ -649,45 +455,21 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             {
                 Thread t1 = new Thread(() =>
                 {
-                    recursiveSideload(dialog.FileName);
+                    Sideloader.RecursiveOutput = new ProcessOutput("", "");
+                    Sideloader.RecursiveSideload(dialog.FileName);
                 });
                 t1.IsBackground = true;
                 t1.Start();
                 while (t1.IsAlive)
                     await Task.Delay(100);
                 showAvailableSpace();
-            }
-            else return;
 
-            notify("Done bulk sideloading");
-        }
-
-        private void recursiveSideload(string location)
-        {
-            ADB.DeviceID = GetDeviceID();
-            string[] files = Directory.GetFiles(location);
-            string[] childDirectories = Directory.GetDirectories(location);
-            for (int i = 0; i < files.Length; i++)
-            {
-                string extension = Path.GetExtension(files[i]);
-                if (extension == ".apk")
-                {
-                    ADB.Sideload(files[i]);
-                }
-            }
-            for (int i = 0; i < childDirectories.Length; i++)
-            {
-                recursiveSideload(childDirectories[i]);
+                ShowPrcOutput(Sideloader.RecursiveOutput);
             }
         }
-
-        /*Progress bar stuff
-         * 
-         */
 
         private async void copyBulkObbButton_Click(object sender, EventArgs e)
         {
-
             var dialog = new FolderSelectDialog
             {
                 Title = "Select your folder with APKs"
@@ -696,7 +478,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             {
                 Thread t1 = new Thread(() =>
                 {
-                    recursiveCopy(dialog.FileName);
+                    Sideloader.RecursiveOutput = new ProcessOutput("","");
+                    Sideloader.RecursiveCopyOBB(dialog.FileName);
                 });
                 t1.IsBackground = true;
                 t1.Start();
@@ -705,91 +488,69 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
                 while (t1.IsAlive)
                     await Task.Delay(100);
-            }
-            else return;
 
-            FlexibleMessageBox.Show("Done");
-        }
-
-        void recursiveCopy(string location)
-        {
-            string[] files = Directory.GetFiles(location);
-            string[] childDirectories = Directory.GetDirectories(location);
-            for (int i = 0; i < files.Length; i++)
-            {
-                string extension = Path.GetExtension(files[i]);
-                
-                if (extension == ".obb")
-                {
-                    int index = files[i].LastIndexOf("\\");
-                    if (index > 0)
-                        files[i] = files[i].Substring(0, index);
-                    if (Directory.Exists(files[i])) //if it's a folder
-                        ADB.CopyOBB(files[i]);
-
-                }
-            }
-            for (int i = 0; i < childDirectories.Length; i++)
-            {
-                recursiveCopy(childDirectories[i]);
+                ShowPrcOutput(Sideloader.RecursiveOutput);
             }
         }
-
-
 
         private async void Form1_DragDrop(object sender, DragEventArgs e)
         {
             AprilPrank();
-            bool ok = false;
-            string output = "";
+            ProcessOutput output = new ProcessOutput("", "");
             ADB.DeviceID = GetDeviceID();
             progressBar.Style = ProgressBarStyle.Marquee;
             Thread t1 = new Thread(() =>
             {
-                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                foreach (string file in files)
+                string[] datas = (string[])e.Data.GetData(DataFormats.FileDrop);
+                foreach (string data in datas)
                 {
+                    //if is directory
+                    if (Directory.Exists(data))
+                    {
+                        output += ADB.CopyOBB(data);
+                        if (File.Exists($"{data}\\install.txt"))
+                        {
+                            Sideloader.RunADBCommandsFromFile($"{data}\\install.txt", data);
+                        }
+                        string[] files = Directory.GetFiles(data);
+                        foreach (string file in files)
+                        {
+                            if (File.Exists(file))
+                                if (file.EndsWith(".apk"))
+                                    output += ADB.Sideload(file);
+                        }
+                        string[] folders = Directory.GetDirectories(data);
+                        foreach (string folder in folders)
+                        {
+                            output += ADB.CopyOBB(folder);
+                        }
+                    }
+                    //if it's a file
+                    else if (File.Exists(data))
+                    {
+                        string extension = Path.GetExtension(data);
+                        if (extension == ".apk")
+                        {
+                            output += ADB.Sideload(data);
+                        }
+                        else if (extension == ".obb")
+                        {
+                            string filename = Path.GetFileName(data);
+                            string foldername = filename.Substring(filename.IndexOf('.') + 1);
+                            foldername = foldername.Substring(foldername.IndexOf('.') + 1);
+                            foldername = foldername.Replace(".obb", "");
+                            foldername = Environment.CurrentDirectory + "\\" + foldername;
+                            Directory.CreateDirectory(foldername);
+                            Console.WriteLine($"filename: {filename} foldername: {foldername} all: {Environment.CurrentDirectory + "\\" + foldername}");
+                            File.Copy(data, foldername + "\\" + filename);
+                            output += ADB.CopyOBB(foldername);
+                            Directory.Delete(foldername, true);
+                        }
 
-                    string extension = Path.GetExtension(file);
-                    if (extension == ".apk")
-                    {
-                        ok = true;
-                        output += ADB.Sideload(file);
-                    }
-                    else if (extension == ".obb")
-                    {
-                        string filename = Path.GetFileName(file);
-                        string foldername = filename.Substring(filename.IndexOf('.') + 1);
-                        foldername = foldername.Substring(foldername.IndexOf('.') + 1);
-                        foldername = foldername.Replace(".obb", "");
-                        //remove main.number.
-                        Directory.CreateDirectory(foldername);
-                        Console.WriteLine($"filename: {filename} foldername: {foldername} all: {Environment.CurrentDirectory + "\\" + foldername}");
-                        File.Copy(file, Environment.CurrentDirectory + "\\" + foldername + "\\" + filename);
-                        output += ADB.CopyOBB(Environment.CurrentDirectory + "\\" + foldername);
-                        Directory.Delete(Environment.CurrentDirectory + "\\" + foldername, true);
-                    }
-                    else if (Directory.Exists(file))
-                    {
-                        if (File.Exists($"{file}\\install.txt"))
+                        if (extension == ".txt")
                         {
-                            Sideloader.RunADBCommandsFromFile($"{file}\\install.txt", file);
+                            Sideloader.RunADBCommandsFromFile(data, Environment.CurrentDirectory);
                         }
-                        ok = true;
-                        string[] foldersindirectory = Directory.GetDirectories(file);
-                        foreach (string curr in foldersindirectory)
-                        {
-                            output += ADB.CopyOBB(curr);
-                        }
-                        string[] filesindirectory = Directory.GetFiles(file);
-                        foreach (string curr in filesindirectory)
-                        {
-                            if (Path.GetExtension(curr) == ".apk")
-                            {
-                                output += ADB.Sideload(curr);
-                            }
-                        }
-                        output += ADB.CopyOBB(file);
                     }
                 }
             });
@@ -798,22 +559,21 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
             while (t1.IsAlive)
                 await Task.Delay(100);
+
             progressBar.Style = ProgressBarStyle.Continuous;
 
             showAvailableSpace();
-            DragDropLbl.Visible = false;
-            if (ok && !is1April)
-                notify(output);
 
             DragDropLbl.Visible = false;
+
+            ShowPrcOutput(output);
         }
-        string oldTitle;
+
         private void Form1_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effect = DragDropEffects.Copy;
-            oldTitle = this.Text;
             DragDropLbl.Visible = true;
-            DragDropLbl.Text = "Drag and Drop-\nAPK or APK+OBB folder.";
+            DragDropLbl.Text = "Drag apk or obb";
             ChangeTitle(DragDropLbl.Text);
         }
 
@@ -821,7 +581,44 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
         {
             DragDropLbl.Visible = false;
         }
-        string[] games;
+
+        void initListView()
+        {
+            gamesListView.Items.Clear();
+            gamesListView.Columns.Clear();
+            
+            foreach (string column in SideloaderRCLONE.gameProperties)
+            {
+                gamesListView.Columns.Add(column, 150);
+            }
+
+            foreach (string[] release in SideloaderRCLONE.games)
+            {
+                ListViewItem Game = new ListViewItem(release);
+
+                foreach (string packagename in Sideloader.InstalledPackageNames)
+                {
+                    if (string.Equals(release[SideloaderRCLONE.PackageNameIndex], packagename))
+                    {
+                        Game.BackColor = Color.Green;
+                        string InstalledVersionCode = ADB.RunAdbCommandToString($"shell \"dumpsys package {packagename} | grep versionCode\"").Output;
+                        InstalledVersionCode = Utilities.StringUtilities.RemoveEverythingBeforeFirst(InstalledVersionCode, "versionCode=");
+                        InstalledVersionCode = Utilities.StringUtilities.RemoveEverythingAfterFirst(InstalledVersionCode, " ");
+                        ulong installedVersionInt = UInt64.Parse(Utilities.StringUtilities.KeepOnlyNumbers(InstalledVersionCode));
+                        ulong cloudVersionInt = UInt64.Parse(Utilities.StringUtilities.KeepOnlyNumbers(release[SideloaderRCLONE.VersionCodeIndex]));
+                        Logger.Log($"Checked game {release[SideloaderRCLONE.GameNameIndex]}; cloudversion={cloudVersionInt} localversion={installedVersionInt}");
+                        if (installedVersionInt < cloudVersionInt)
+                        {
+                            Game.BackColor = Color.Red;
+                        }
+
+                    }
+                }
+
+
+                gamesListView.Items.Add(Game);
+            }
+        }
         private async void Form1_Shown(object sender, EventArgs e)
         {
             Thread t1 = new Thread(() =>
@@ -829,15 +626,15 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                 if (!debugMode && Properties.Settings.Default.checkForUpdates)
                 {
                     Updater.AppName = "AndroidSideloader";
-                    Updater.RawGitHubUrl = "https://raw.githubusercontent.com/nerdunit/androidsideloader";
-                    Updater.GitHubUrl = "https://github.com/nerdunit/androidsideloader";
+                    Updater.Repostory = "nerdunit/androidsideloader";
                     Updater.Update();
                 }
                 progressBar.Invoke(() => { progressBar.Style = ProgressBarStyle.Marquee; });
-                initMirrors();
-                initGames();
-                listappsBtn();
-                //progressBar.Invoke(() => { progressBar.Style = ProgressBarStyle.Continuous; });
+                initMirrors(true);
+                SideloaderRCLONE.initGames(currentRemote);
+                SideloaderRCLONE.UpdateGamePhotos(currentRemote);
+                SideloaderRCLONE.UpdateGameNotes(currentRemote);
+                listappsbtn();
             });
             t1.SetApartmentState(ApartmentState.STA);
             t1.IsBackground = false;
@@ -850,6 +647,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             while (t1.IsAlive)
                 await Task.Delay(100);
 
+            initListView();
+
             downloadInstallGameButton.Enabled = true;
 
             DateTime today = DateTime.Today;
@@ -857,35 +656,37 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             if (today.Month == 4 && today.Day == 1)
                 is1April = true;
             progressBar.Style = ProgressBarStyle.Continuous;
+            isLoading = false;
         }
 
-        void initMirrors()
+        void initMirrors(bool random)
         {
-            remotesList.Invoke(() => { remotesList.Items.Clear(); });
-            var mirrors = RCLONE.runRcloneCommand("--config .\\a listremotes").Split('\n');
-            mirrors = RCLONE.runRcloneCommand("--config .\\a listremotes").Split('\n');
+            int index = 0;
+            remotesList.Invoke(() => { index = remotesList.SelectedIndex; remotesList.Items.Clear(); });
+            
+            string[] mirrors = RCLONE.runRcloneCommand("--config .\\a listremotes").Output.Split('\n');
 
             Logger.Log("Loaded following mirrors: ");
+            int itemsCount = 0;
             foreach (string mirror in mirrors)
             {
                 if (mirror.Contains("mirror"))
                 {
                     Logger.Log(mirror.Remove(mirror.Length - 1));
                     remotesList.Invoke(() => { remotesList.Items.Add(mirror.Remove(mirror.Length - 1)); });
+                    itemsCount++;
                 }
             }
 
-            int itemsCount = 0;
-
-            remotesList.Invoke(() => {
-                itemsCount = remotesList.Items.Count;
-            });
-
             if (itemsCount > 0)
             {
+                var rand = new Random();
+                if (random == true)
+                    index = rand.Next(0, itemsCount);
+                else if (index > itemsCount)
+                    index = 0;
                 remotesList.Invoke(() => {
-                    var rand = new Random();
-                    remotesList.SelectedIndex = rand.Next(0,itemsCount);
+                    remotesList.SelectedIndex = index;
                     currentRemote = remotesList.SelectedItem.ToString();
                 });
             }
@@ -893,27 +694,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
         public static string processError = string.Empty;
 
-
         string currentRemote = string.Empty;
-        void initGames()
-        {
-            games = getGames().Result;
 
-            gamesComboBox.Invoke(() => { gamesComboBox.Items.Clear(); });
-            
-            var currGames = RCLONE.runRcloneCommand($"lsf --config .\\a --dirs-only \"{currentRemote}:Quest Games\" --drive-acknowledge-abuse").Split('\n');
-
-            Debug.WriteLine("Loaded following games: ");
-            foreach (string game in currGames)
-            {
-                if (!game.StartsWith(".") && game.Length>1)
-                {
-                    Debug.WriteLine(game);
-                    gamesComboBox.Invoke(() => { gamesComboBox.Items.Add(game.Remove(game.Length - 1)); });
-                }
-            }
-            Debug.WriteLine(wrDelimiter);
-        }
         string wrDelimiter = "-------";
         private void sideloadContainer_Click(object sender, EventArgs e)
         {
@@ -935,7 +717,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
         {
             string about = $@"Finally {Updater.LocalVersion}, with new version comming Soon™
  - Software orignally coded by rookie.wtf
- - Thanks to pmow for all of his work, including rclone, wonka and other projects
+ - Thanks to pmow for all of his work, including rclone, wonka and other projects, and for scripting the backend
+without him none of this would be possible
  - Thanks to the data team, they know who they are ;)
  - Thanks to flow for being friendly and helping every one, also congrats on being the discord server owner now! :D
  - Thanks to badcoder5000 for helping me redesign the ui
@@ -946,7 +729,6 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
  - Thanks to https://stackoverflow.com/users/57611/erike for the folder browser dialog code
  - Thanks to Serge Weinstock for developing SergeUtils, which is used to search the combo box
  - Thanks to Mike Gold https://www.c-sharpcorner.com/members/mike-gold2 for the scrollable message box";
-
 
             FlexibleMessageBox.Show(about);
         }
@@ -959,35 +741,30 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
         private async void listApkButton_Click(object sender, EventArgs e)
         {
+            if (isLoading)
+                return;
+            isLoading = true;
+            
             progressBar.Style = ProgressBarStyle.Marquee;
 
-            showAvailableSpace();
+            devicesbutton_Click(sender, e);
+
             Thread t1 = new Thread(() =>
             {
-                initMirrors();
-                initGames();
-                listappsBtn();
+                Console.WriteLine("Mirrors");
+                initMirrors(false);
+                Console.WriteLine("Games");
+                SideloaderRCLONE.initGames(currentRemote);
+                Console.WriteLine("List apps");
+                listappsbtn();
             });
             t1.IsBackground = true;
             t1.Start();
-
             while (t1.IsAlive)
                 await Task.Delay(100);
-
-        }
-
-        public string randomString(int length)
-        {
-            string valid = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-            StringBuilder res = new StringBuilder();
-            Random rnd = new Random();
-            int randomInteger = rnd.Next(0, valid.Length);
-            while (0 < length--)
-            {
-                res.Append(valid[randomInteger]);
-                randomInteger = rnd.Next(0, valid.Length);
-            }
-            return res.ToString();
+            initListView();
+            progressBar.Style = ProgressBarStyle.Continuous;
+            isLoading = false;
         }
 
         private static readonly HttpClient client = new HttpClient();
@@ -996,50 +773,72 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
         
         bool gamesAreDownloading = false;
         List<string> gamesQueueList = new List<string>();
-
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        async Task<bool> showGameSizeDialog(string gameName)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-        {
-            dynamic results = JsonConvert.DeserializeObject<dynamic>(RCLONE.runRcloneCommand($"size \"{currentRemote}:Quest Games/{gameName}\" --config .\\a --json"));
-            long gameSize = results.bytes.ToObject<long>();
-            Debug.WriteLine($"Remote: {currentRemote}, GameSize: {gameSize}, GameName: {gameName}");
-            DialogResult dialogResult = FlexibleMessageBox.Show($"Are you sure you want to download {gameName}? it has a size of {String.Format("{0:0.00}", (double)gameSize / 1000000)} MB", "Are you sure?", MessageBoxButtons.YesNo);
-            if (dialogResult != DialogResult.Yes)
-                return false;
-            return true;
-        }
-
+        List<string> gamesToAddList = new List<string>();
         int quotaTries = 0;
         private async void downloadInstallGameButton_Click(object sender, EventArgs e)
         {
-            if (gamesComboBox.SelectedIndex == -1)
+            long selectedGamesSize = 0;
+            int count = 0;
+            string[] GameSizeGame = new string[1];
+            if (gamesToAddList.Count > 0)
             {
-                notify("You must select a game first");
-                return;
+                count = gamesToAddList.Count;
+                GameSizeGame = new string[count];
+                for (int i = 0; i < count; i++)
+                    GameSizeGame[i] = gamesToAddList[i];
             }
+            else if (gamesListView.SelectedItems.Count > 0)
+            {
+
+                count = gamesListView.SelectedItems.Count;
+                GameSizeGame = new string[count];
+                for (int i = 0; i < count; i++)
+                    GameSizeGame[i] = gamesListView.SelectedItems[i].SubItems[SideloaderRCLONE.ReleaseNameIndex].Text;
+            }
+            else return;
+
+
+            Thread gameSizeThread = new Thread(() => {
+                for (int i = 0; i < count; i++)
+                    selectedGamesSize += SideloaderRCLONE.GetFolderSize(GameSizeGame[i], currentRemote);
+            });
+            gameSizeThread.Start();
+
+            while (gameSizeThread.IsAlive)
+                await Task.Delay(100);
+
+            DialogResult dialogResult = FlexibleMessageBox.Show($"Are you sure you want to download the selected game(s)? The size is {String.Format("{0:0.00}", (double)selectedGamesSize)} MB", "Are you sure?", MessageBoxButtons.YesNo);
+            if (dialogResult != DialogResult.Yes)
+                return;
+
+
+            //Add games to the queue
+            if (gamesToAddList.Count > 0)
+                gamesQueueList.AddRange(gamesToAddList);
+            else
+            {
+                for (int i = 0; i < gamesListView.SelectedItems.Count; i++)
+                    gamesQueueList.Add(gamesListView.SelectedItems[i].SubItems[SideloaderRCLONE.ReleaseNameIndex].Text);
+            }
+            gamesToAddList.Clear();
+            gamesQueListBox.DataSource = null;
+            gamesQueListBox.DataSource = gamesQueueList;
+
+
+            if (gamesAreDownloading)
+                return;
+            gamesAreDownloading = true;
 
             if (updatedConfig == false && Properties.Settings.Default.autoUpdateConfig == true) //check for config only once per program open and if setting enabled
             {
                 updatedConfig = true;
                 ChangeTitle("Rookie's Sideloader | Checking if config is updated and updating config");
                 progressBar.Style = ProgressBarStyle.Marquee;
-                await Task.Run(() => Sideloader.updateConfig(currentRemote));
+                await Task.Run(() => SideloaderRCLONE.updateConfig(currentRemote));
                 progressBar.Style = ProgressBarStyle.Continuous;
             }
 
-            if (await showGameSizeDialog(gamesComboBox.SelectedItem.ToString())==false)
-                return;
-
-            gamesQueueList.Add(gamesComboBox.SelectedItem.ToString());
-            gamesQueListBox.DataSource = null;
-            gamesQueListBox.DataSource = gamesQueueList;
-
-            if (gamesAreDownloading)
-                return;
-
-            gamesAreDownloading = true;
-
+            //Do user json on firsttime
             if (Properties.Settings.Default.userJsonOnGameInstall)
             {
                 Thread userJsonThread = new Thread(() => { ChangeTitle("Rookie's Sideloader | Pushing user.json"); Sideloader.PushUserJsons(); });
@@ -1047,27 +846,22 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                 userJsonThread.Start();
             }
 
-            string output = "";
+            ProcessOutput output = new ProcessOutput("", "");
 
             while (gamesQueueList.Count>0)
             {
                 string gameName = gamesQueueList.ToArray()[0];
-                Debug.WriteLine(RCLONE.runRcloneCommand($"size \"{currentRemote}:Quest Games/{gameName}\" --config .\\a --json"));
-
-                int apkNumber = 0;
-                int obbNumber = 0;
 
                 string gameDirectory = Environment.CurrentDirectory + "\\" + gameName;
                 Directory.CreateDirectory(gameDirectory);
+                ProcessOutput gameDownloadOutput = new ProcessOutput("","");
 
                 Thread t1 = new Thread(() =>
                 {
-                    RCLONE.runRcloneCommand($"copy --config .\\a \"{currentRemote}:Quest Games/{gameName}\" \"{Environment.CurrentDirectory}\\{gameName}\" --progress --drive-acknowledge-abuse --rc", true, Properties.Settings.Default.BandwithLimit).Split('\n');
+                    gameDownloadOutput = RCLONE.runRcloneCommand($"copy --config .\\a \"{currentRemote}:{SideloaderRCLONE.RcloneGamesFolder}/{gameName}\" \"{Environment.CurrentDirectory}\\{gameName}\" --progress --drive-acknowledge-abuse --rc", Properties.Settings.Default.BandwithLimit);
 
                     if (File.Exists($"{gameDirectory}\\install.txt"))
-                    {
                         Sideloader.RunADBCommandsFromFile($"{gameDirectory}\\install.txt", gameDirectory);
-                    }
                 });
                 t1.IsBackground = true;
                 t1.Start();
@@ -1087,8 +881,6 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                         dynamic results = JsonConvert.DeserializeObject<dynamic>(foo);
 
                         float downloadSpeed = results.speed.ToObject<float>();
-
-//                        float downloadSpeedDelta = 0F;
 
                         long allSize = 0;
 
@@ -1129,9 +921,9 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
                 //Quota Errors
                 bool quotaError = false;
-                if (RCLONE.rcloneError.Length!=0)
+                if (gameDownloadOutput.Error.Length>0)
                 {
-                    if (RCLONE.rcloneError.Contains("downloadQuotaExceeded"))
+                    if (gameDownloadOutput.Error.Contains("downloadQuotaExceeded"))
                     {
                         quotaTries++;
                         quotaError = true;
@@ -1141,7 +933,7 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                         {
                             quotaTries = 0;
                             FlexibleMessageBox.Show("Quota reached for all mirrors, trying to refresh remotes...");
-                            initGames();
+                            SideloaderRCLONE.initGames(currentRemote);
                             remotesList.SelectedIndex = remotesList.Items.Count - 1;
                             return;
                         }
@@ -1154,9 +946,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                         gamesQueListBox.DataSource = null;
                         gamesQueListBox.DataSource = gamesQueueList;
                     }
-                    else FlexibleMessageBox.Show(RCLONE.rcloneError);
+                    else if (!gameDownloadOutput.Error.Contains("NOTICE: Serving remote control on http://127.0.0.1:5572/")) FlexibleMessageBox.Show($"Rclone output: {gameDownloadOutput.Error}");
                 }
-                ChangeTitle(oldTitle, false);
                 if (quotaError==false)
                 {
                     ADB.DeviceID = GetDeviceID();
@@ -1178,8 +969,6 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                         string extension = Path.GetExtension(file);
                         if (extension == ".apk")
                         {
-                            apkNumber++;
-
                             Thread apkThread = new Thread(() =>
                             {
                                 if (Properties.Settings.Default.SpoofGames)
@@ -1188,7 +977,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                                     ChangeTitle($"Spoofing {file}");
                                     Console.WriteLine(file);
                                     Console.WriteLine(spoofer.spoofedApkPath);
-                                    Spoofer.spoofer.SpoofApk(file, $"com.{Utilities.randomString(rand.Next(3, 8))}.{Utilities.randomString(rand.Next(3, 8))}");
+                                    Spoofer.spoofer.PackageName(file);
+                                    Spoofer.spoofer.SpoofApk(file, spoofer.PackageName(file));
 
                                     output += ADB.Sideload(spoofer.spoofedApkPath);
                                 }
@@ -1213,25 +1003,12 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                     {
                         string[] obbs = Directory.GetFiles(folder);
 
-                        bool isObb = false;
                         foreach (string currObb in obbs)
                         {
-                            string extension = Path.GetExtension(currObb);
-
-                            if (extension == ".obb")
-                            {
-                                isObb = true;
-                            }
-                        }
-
-                        if (isObb == true)
-                        {
-                            obbNumber++;
-
                             Thread obbThread = new Thread(() =>
                             {
                                 if (Properties.Settings.Default.SpoofGames)
-                                    Spoofer.spoofer.RenameObb(folder, spoofer.newPackageName, spoofer.originalPackageName);
+                                    Spoofer.spoofer.RenameObb(folder, spoofer.originalPackageName, spoofer.originalPackageName);
                                 output += ADB.CopyOBB(folder);
                             });
                             obbThread.IsBackground = true;
@@ -1245,26 +1022,23 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
                     if (Properties.Settings.Default.deleteAllAfterInstall)
                     {
                         ChangeTitle("Rookie's Sideloader | Deleting game files", false);
-                        Directory.Delete(Environment.CurrentDirectory + "\\" + gameName, true);
+                        try { Directory.Delete(Environment.CurrentDirectory + "\\" + gameName, true); } catch(Exception ex) { MessageBox.Show($"Error deleting game files: {ex.Message}"); }
                     }
 
-                    try
-                    {
-                        gamesQueueList.RemoveAt(0);
-                        gamesQueListBox.DataSource = null;
-                        gamesQueListBox.DataSource = gamesQueueList;
-                    }
-                    catch { FlexibleMessageBox.Show("Uhhhm you've got a weird error please contact rookie"); break; }
+                    //Remove current game
+                    gamesQueueList.RemoveAt(0);
+                    gamesQueListBox.DataSource = null;
+                    gamesQueListBox.DataSource = gamesQueueList;
                     showAvailableSpace();
                 }
 
             }
-            etaLabel.Text = "ETA: Done";
-            speedLabel.Text = "DLS: Done";
+            etaLabel.Text = "ETA: Finished Queue";
+            speedLabel.Text = "DLS: Finished Queue";
             await CheckForDevice();
             ChangeTitlebarToDevice();
             gamesAreDownloading = false;
-            notify($"Apk installation output: {output}\n");
+            ShowPrcOutput(output);
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -1297,6 +1071,8 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
 
         private async void killRcloneButton_Click(object sender, EventArgs e)
         {
+            if (isLoading)
+                return;
             RCLONE.killRclone();
             movieStreamButton.Text = "START MOVIE STREAM";
             ChangeTitle("Killed Rclone");
@@ -1329,7 +1105,6 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             remotesList.Invoke(() => { currentRemote = remotesList.SelectedItem.ToString(); });
         }
 
-
         private void QuestOptionsButton_Click(object sender, EventArgs e)
         {
             QuestForm Form = new QuestForm();
@@ -1348,49 +1123,100 @@ Do you want to delete the {Sideloader.CrashLogPath} (if you press yes, this mess
             Form.Show();
         }
 
-        private void gamesComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        private void listView1_ColumnClick(object sender, ColumnClickEventArgs e)
         {
+            // Determine if clicked column is already the column that is being sorted.
+            if (e.Column == lvwColumnSorter.SortColumn)
+            {
+                // Reverse the current sort direction for this column.
+                if (lvwColumnSorter.Order == SortOrder.Ascending)
+                    lvwColumnSorter.Order = SortOrder.Descending;
+                else
+                    lvwColumnSorter.Order = SortOrder.Ascending;
+            }
+            else
+            {
+                // Set the column number that is to be sorted; default to ascending.
+                lvwColumnSorter.SortColumn = e.Column;
+                lvwColumnSorter.Order = SortOrder.Ascending;
+            }
 
+            // Perform the sort with these new sort options.
+            this.gamesListView.Sort();
         }
 
-        private void label1_Click(object sender, EventArgs e)
+        private void searchTextBox_TextChanged(object sender, EventArgs e)
         {
+            ListViewItem foundItem = gamesListView.FindItemWithText(searchTextBox.Text, true, 0, true);
+            if (foundItem != null)
+            {
+                gamesListView.TopItem = foundItem;
+            }
+        }
+        private void gamesListView_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (gamesListView.SelectedItems.Count < 1)
+                return;
+            string CurrentPackageName = gamesListView.SelectedItems[gamesListView.SelectedItems.Count - 1].SubItems[SideloaderRCLONE.PackageNameIndex].Text;
+            string CurrentReleaseName = gamesListView.SelectedItems[gamesListView.SelectedItems.Count - 1].SubItems[SideloaderRCLONE.ReleaseNameIndex].Text;
 
+            string ImagePath = $"{SideloaderRCLONE.ThumbnailsFolder}\\{CurrentPackageName}.jpg";
+            string NotePath = $"{SideloaderRCLONE.NotesFolder}\\{CurrentReleaseName}.txt";
+
+            if (File.Exists(ImagePath))
+                gamesPictureBox.BackgroundImage = Image.FromFile(ImagePath);
+            else
+                gamesPictureBox.BackgroundImage = new Bitmap(360, 203);
+
+            if (File.Exists(NotePath))
+                notesRichTextBox.Text = File.ReadAllText(NotePath);
+            else
+                notesRichTextBox.Text = "";
         }
 
-        private void m_combo_SelectedIndexChanged(object sender, EventArgs e)
+        private void UpdateGamesButton_Click(object sender, EventArgs e)
         {
-
+            List<string> games = new List<string>();
+            string gamesToUpdate = "";
+            foreach (string packagename in Sideloader.InstalledPackageNames)
+            {
+                foreach (var release in SideloaderRCLONE.games)
+                {
+                    if (string.Equals(release[SideloaderRCLONE.PackageNameIndex],packagename))
+                    {
+                        //only keep numbers from 0 to 9 remove everything else then try to compare 
+                        FlexibleMessageBox.Show($"You have {packagename} installed on your device");
+                        string InstalledVersionCode = ADB.RunAdbCommandToString($"shell \"dumpsys package {packagename} | grep versionCode\"").Output;
+                        InstalledVersionCode = Utilities.StringUtilities.RemoveEverythingBeforeFirst(InstalledVersionCode, "versionCode=");
+                        InstalledVersionCode = Utilities.StringUtilities.RemoveEverythingAfterFirst(InstalledVersionCode, " ");
+                        ulong installedVersionInt = UInt64.Parse(Utilities.StringUtilities.KeepOnlyNumbers(InstalledVersionCode));
+                        ulong cloudVersionInt = UInt64.Parse(Utilities.StringUtilities.KeepOnlyNumbers(release[SideloaderRCLONE.VersionCodeIndex]));
+                        
+                        if (installedVersionInt<cloudVersionInt)
+                        {
+                            games.Add(release[SideloaderRCLONE.ReleaseNameIndex]);
+                            gamesToUpdate += $"{release[SideloaderRCLONE.VersionCodeIndex]} you have version {InstalledVersionCode} while version {release[SideloaderRCLONE.VersionCodeIndex]} is available";
+                        }
+                    }
+                }
+            }
+            if (gamesToUpdate.Length > 0)
+            {
+                DialogResult dialogResult = FlexibleMessageBox.Show(this, gamesToUpdate + "\nDo you want to add these games to the download queue?", "Game Updates", MessageBoxButtons.YesNo);
+                if (dialogResult == DialogResult.Yes)
+                {
+                    gamesToAddList.AddRange(games);
+                    downloadInstallGameButton_Click(sender, e);
+                }
+            }
+            else
+                FlexibleMessageBox.Show("All your games are up to date!");
         }
 
-        private void label2_Click(object sender, EventArgs e)
+        private void gamesListView_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-
-        }
-
-        private void label3_Click(object sender, EventArgs e)
-        {
-   
-        }
-
-        private void label4_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void diskLabel_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void DragDropLbl_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void freeDisclaimer_Click(object sender, EventArgs e)
-        {
-
+            if (gamesListView.SelectedItems.Count > 0)
+                downloadInstallGameButton_Click(sender, e);
         }
     }
     public static class ControlExtensions

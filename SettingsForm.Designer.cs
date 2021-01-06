@@ -34,7 +34,6 @@
             this.resetSettingsButton = new System.Windows.Forms.Button();
             this.deleteAfterInstallCheckBox = new System.Windows.Forms.CheckBox();
             this.updateConfigCheckBox = new System.Windows.Forms.CheckBox();
-            this.debugRcloneCheckBox = new System.Windows.Forms.CheckBox();
             this.userJsonOnGameInstall = new System.Windows.Forms.CheckBox();
             this.spoofGamesCheckbox = new System.Windows.Forms.CheckBox();
             this.BandwithTextbox = new System.Windows.Forms.TextBox();
@@ -64,7 +63,7 @@
             this.applyButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.applyButton.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
             this.applyButton.ForeColor = global::AndroidSideloader.Properties.Settings.Default.FontColor;
-            this.applyButton.Location = new System.Drawing.Point(13, 231);
+            this.applyButton.Location = new System.Drawing.Point(12, 215);
             this.applyButton.Name = "applyButton";
             this.applyButton.Size = new System.Drawing.Size(101, 31);
             this.applyButton.TabIndex = 5;
@@ -94,7 +93,7 @@
             this.resetSettingsButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.resetSettingsButton.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
             this.resetSettingsButton.ForeColor = global::AndroidSideloader.Properties.Settings.Default.FontColor;
-            this.resetSettingsButton.Location = new System.Drawing.Point(120, 231);
+            this.resetSettingsButton.Location = new System.Drawing.Point(119, 215);
             this.resetSettingsButton.Name = "resetSettingsButton";
             this.resetSettingsButton.Size = new System.Drawing.Size(101, 31);
             this.resetSettingsButton.TabIndex = 4;
@@ -128,25 +127,12 @@
             this.updateConfigCheckBox.UseVisualStyleBackColor = true;
             this.updateConfigCheckBox.CheckedChanged += new System.EventHandler(this.updateConfigCheckBox_CheckedChanged);
             // 
-            // debugRcloneCheckBox
-            // 
-            this.debugRcloneCheckBox.AutoSize = true;
-            this.debugRcloneCheckBox.DataBindings.Add(new System.Windows.Forms.Binding("Font", global::AndroidSideloader.Properties.Settings.Default, "FontStyle", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
-            this.debugRcloneCheckBox.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
-            this.debugRcloneCheckBox.Location = new System.Drawing.Point(13, 106);
-            this.debugRcloneCheckBox.Name = "debugRcloneCheckBox";
-            this.debugRcloneCheckBox.Size = new System.Drawing.Size(121, 22);
-            this.debugRcloneCheckBox.TabIndex = 8;
-            this.debugRcloneCheckBox.Text = "Debug Rclone";
-            this.debugRcloneCheckBox.UseVisualStyleBackColor = true;
-            this.debugRcloneCheckBox.CheckedChanged += new System.EventHandler(this.debugRcloneCheckBox_CheckedChanged);
-            // 
             // userJsonOnGameInstall
             // 
             this.userJsonOnGameInstall.AutoSize = true;
             this.userJsonOnGameInstall.DataBindings.Add(new System.Windows.Forms.Binding("Font", global::AndroidSideloader.Properties.Settings.Default, "FontStyle", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
             this.userJsonOnGameInstall.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
-            this.userJsonOnGameInstall.Location = new System.Drawing.Point(13, 130);
+            this.userJsonOnGameInstall.Location = new System.Drawing.Point(12, 111);
             this.userJsonOnGameInstall.Name = "userJsonOnGameInstall";
             this.userJsonOnGameInstall.Size = new System.Drawing.Size(243, 22);
             this.userJsonOnGameInstall.TabIndex = 9;
@@ -159,11 +145,11 @@
             this.spoofGamesCheckbox.AutoSize = true;
             this.spoofGamesCheckbox.DataBindings.Add(new System.Windows.Forms.Binding("Font", global::AndroidSideloader.Properties.Settings.Default, "FontStyle", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
             this.spoofGamesCheckbox.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
-            this.spoofGamesCheckbox.Location = new System.Drawing.Point(13, 153);
+            this.spoofGamesCheckbox.Location = new System.Drawing.Point(12, 139);
             this.spoofGamesCheckbox.Name = "spoofGamesCheckbox";
-            this.spoofGamesCheckbox.Size = new System.Drawing.Size(253, 22);
+            this.spoofGamesCheckbox.Size = new System.Drawing.Size(263, 22);
             this.spoofGamesCheckbox.TabIndex = 10;
-            this.spoofGamesCheckbox.Text = "Spoof games installed from rclone";
+            this.spoofGamesCheckbox.Text = "Resign Games Installed from rclone";
             this.spoofGamesCheckbox.UseVisualStyleBackColor = true;
             this.spoofGamesCheckbox.CheckedChanged += new System.EventHandler(this.spoofGamesCheckbox_CheckedChanged);
             // 
@@ -175,7 +161,7 @@
             this.BandwithTextbox.DataBindings.Add(new System.Windows.Forms.Binding("BackColor", global::AndroidSideloader.Properties.Settings.Default, "TextBoxColor", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
             this.BandwithTextbox.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
             this.BandwithTextbox.ForeColor = global::AndroidSideloader.Properties.Settings.Default.FontColor;
-            this.BandwithTextbox.Location = new System.Drawing.Point(13, 201);
+            this.BandwithTextbox.Location = new System.Drawing.Point(12, 185);
             this.BandwithTextbox.Name = "BandwithTextbox";
             this.BandwithTextbox.Size = new System.Drawing.Size(177, 24);
             this.BandwithTextbox.TabIndex = 11;
@@ -185,7 +171,7 @@
             this.label1.AutoSize = true;
             this.label1.DataBindings.Add(new System.Windows.Forms.Binding("Font", global::AndroidSideloader.Properties.Settings.Default, "FontStyle", true, System.Windows.Forms.DataSourceUpdateMode.OnPropertyChanged));
             this.label1.Font = global::AndroidSideloader.Properties.Settings.Default.FontStyle;
-            this.label1.Location = new System.Drawing.Point(12, 178);
+            this.label1.Location = new System.Drawing.Point(10, 164);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(230, 18);
             this.label1.TabIndex = 12;
@@ -206,7 +192,7 @@
             "K",
             "M",
             "G"});
-            this.BandwithComboBox.Location = new System.Drawing.Point(196, 199);
+            this.BandwithComboBox.Location = new System.Drawing.Point(195, 183);
             this.BandwithComboBox.Name = "BandwithComboBox";
             this.BandwithComboBox.Size = new System.Drawing.Size(55, 26);
             this.BandwithComboBox.TabIndex = 13;
@@ -222,7 +208,6 @@
             this.Controls.Add(this.BandwithTextbox);
             this.Controls.Add(this.spoofGamesCheckbox);
             this.Controls.Add(this.userJsonOnGameInstall);
-            this.Controls.Add(this.debugRcloneCheckBox);
             this.Controls.Add(this.updateConfigCheckBox);
             this.Controls.Add(this.deleteAfterInstallCheckBox);
             this.Controls.Add(this.enableMessageBoxesCheckBox);
@@ -251,7 +236,6 @@
         private System.Windows.Forms.Button resetSettingsButton;
         private System.Windows.Forms.CheckBox deleteAfterInstallCheckBox;
         private System.Windows.Forms.CheckBox updateConfigCheckBox;
-        private System.Windows.Forms.CheckBox debugRcloneCheckBox;
         private System.Windows.Forms.CheckBox userJsonOnGameInstall;
         private System.Windows.Forms.CheckBox spoofGamesCheckbox;
         private System.Windows.Forms.TextBox BandwithTextbox;
